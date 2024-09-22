@@ -1,17 +1,11 @@
 import torch
 import cv2
-import mediapipe as mp
-
-# Initialize MediaPipe Pose
-mp_pose = mp.solutions.pose
-pose = mp_pose.Pose()
-mp_drawing = mp.solutions.drawing_utils
 
 # Load YOLOv7 model
 model = torch.hub.load('WongKinYiu/yolov7', 'custom', 'yolov7.pt')
 
 # Path to the tennis video (replace with your actual video path)
-video_path = '/Users/yizhengc/PycharmProjects/TennisCoach/Sinner.mp4'
+video_path = '/Users/yizhengc/Downloads/QPV/Sinner.mp4'  # Change this to your actual video file path
 
 # Open the video file using OpenCV
 cap = cv2.VideoCapture(video_path)
@@ -24,39 +18,36 @@ if not cap.isOpened():
 # Process video frame by frame
 while True:
     ret, frame = cap.read()
+
+    # Break the loop if the video ends
     if not ret:
         break
 
-    # Run object detection using YOLOv7
+    # Convert the frame (image) to a format that YOLOv7 can process
     results = model(frame)
 
-    # Loop through detected objects and draw bounding boxes
-    for det in results.xyxy[0]:  # Results for the first image
+    # Draw bounding boxes on the frame for detected objects
+    for det in results.xyxy[0]:  # For each detected object
         xmin, ymin, xmax, ymax, conf, cls = det.tolist()
 
         # Filter out low-confidence detections (confidence > 0.5)
         if conf > 0.5:
-            # Draw bounding box
-            cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (255, 0, 0), 2)
-
-            # Display class label (change if necessary)
+            # Draw a rectangle (bounding box) around the object
+            cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0, 255, 0), 2)
+            # Get the class label
             label = f'{model.names[int(cls)]}: {conf:.2f}'
-            cv2.putText(frame, label, (int(xmin), int(ymin) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+            # Put the label text above the bounding box
+            cv2.putText(frame, label, (int(xmin), int(ymin) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Display the frame (optional, comment this out if not needed)
+    cv2.imshow('YOLOv7 Tennis Posture Detection', frame)
 
-    poses = pose.process(image_rgb)
-
-    # Draw the pose on the image
-    if poses.pose_landmarks:
-        mp_drawing.draw_landmarks(frame, poses.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-
-    # Display the frame
-    cv2.imshow('Tennis Racket Detection', frame)
-
-    # Press 'q' to exit
+    # Press 'q' to exit the video early
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+# Release the video capture and writer objects
 cap.release()
+
+# Close any OpenCV windows
 cv2.destroyAllWindows()
