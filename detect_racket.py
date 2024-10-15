@@ -37,12 +37,16 @@ while True:
         xmin, ymin, xmax, ymax, conf, cls = det.tolist()
 
         # Filter out low-confidence detections (confidence > 0.5)
-        if conf > 0.5 and int(cls) == 0:  # Assuming 'person' class is 0
+        if conf > 0.5 and model.names[int(cls)] in ["tennis racket", "sports ball"]:  # Assuming 'person' class is 0
+            
             # Draw a rectangle (bounding box) around the detected person
             cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0, 255, 0), 2)
+            
+            label = f'{model.names[int(cls)]}: {conf:.2f}'
+            cv2.putText(frame, label, (int(xmin), int(ymin - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-            # Perform pose estimation using MediaPipe
-            results_pose = pose.process(frame)
+    # Perform pose estimation using MediaPipe
+    results_pose = pose.process(frame)
 
     # Draw skeleton if pose is detected
     if results_pose.pose_landmarks:
