@@ -6,7 +6,7 @@ import mediapipe as mp
 model = torch.hub.load('WongKinYiu/yolov7', 'custom', 'yolov7.pt')
 
 # Path to the tennis video (replace with your actual video path)
-video_path = '/Users/yizhengc/Downloads/Sinner.mp4'  # Change this to your actual video file path
+video_path = '/Users/yizhengc/Downloads/Sinner2.mp4'  # Change this to your actual video file path
 
 # Initialize MediaPipe pose detection
 mp_pose = mp.solutions.pose
