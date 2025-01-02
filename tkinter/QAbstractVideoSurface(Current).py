@@ -11,7 +11,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt, QUrl, QTimer
 import os
 
-# Load YOLOv7 model for person detection
+# Load YOLOv8 model for person detection
 model = torch.hub.load('WongKinYiu/yolov7', 'custom', 'yolov7.pt')
 
 class CustomVideoSurface(QAbstractVideoSurface):
@@ -81,24 +81,7 @@ class CustomVideoSurface(QAbstractVideoSurface):
 
         return True
     
-    def present(self, frame):
-        if not frame.isValid():
-            return False
-
-        # Convert QVideoFrame to QImage
-        image = frame.image()
-        if image.isNull():
-            return False
-        
-        # Convert QImage to OpenCV format
-        width = image.width()
-        height = image.height()
-        ptr = image.bits()
-        ptr.setsize(image.byteCount())
-        frame_array = np.array(ptr).reshape((height, width, 4))
-        frame_rgb = cv2.cvtColor(frame_array, cv2.COLOR_BGR2RGB)
-        modified_image = QImage(frame_rgb.data, width, height, QImage.Format.Format_RGB888)
-
+    def objectDetection(self, frame_rgb):
         # Convert the frame (image) to a format that YOLOv7 can process
         results = model(frame_rgb)
            
@@ -118,6 +101,7 @@ class CustomVideoSurface(QAbstractVideoSurface):
         person_right = None
         racket_left = None
         person_left = None
+        
 
         # Draw bounding boxes on the frame for detected objects
         for det in results.xyxy[0]:  # For each detected object
@@ -164,7 +148,7 @@ class CustomVideoSurface(QAbstractVideoSurface):
                 file_path = os.path.join(save_dir, file_name)
 
                 # Save the screenshot
-                image.save(file_path)
+                frame_rgb.image().save(file_path)
                 
         # Check for preparation 
         # if racket_box and ball_box and len(self.frames) > 1:
@@ -172,6 +156,27 @@ class CustomVideoSurface(QAbstractVideoSurface):
         #         print("Backhand Preparation Detected")
         #     elif racket_right > person_right:
         #         print("Forehand Preparation Detected")
+
+
+    def present(self, frame):
+        if not frame.isValid():
+            return False
+
+        # Convert QVideoFrame to QImage
+        image = frame.image()
+        if image.isNull():
+            return False
+        
+        # Convert QImage to OpenCV format
+        width = image.width()
+        height = image.height()
+        ptr = image.bits()
+        ptr.setsize(image.byteCount())
+        frame_array = np.array(ptr).reshape((height, width, 4))
+        frame_rgb = cv2.cvtColor(frame_array, cv2.COLOR_BGR2RGB)
+        modified_image = QImage(frame_rgb.data, width, height, QImage.Format.Format_RGB888)
+
+        self.objectDetection(frame_rgb)
 
         # Perform pose estimation using MediaPipe
         results_pose = self.pose.process(frame_rgb)
@@ -223,10 +228,10 @@ class VideoPlayer(QWidget):
         openButton = QPushButton("Open Video")
         openButton.clicked.connect(self.open_file)
 
-        playButton = QPushButton()
-        playButton.setEnabled(False)
-        playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        playButton.clicked.connect(self.play_video)
+        self.playButton = QPushButton()
+        self.playButton.setEnabled(False)
+        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.playButton.clicked.connect(self.play_video)
 
         self.slider = QSlider(Qt.Horizontal)
         self.slider.sliderMoved.connect(self.set_position)
@@ -236,32 +241,37 @@ class VideoPlayer(QWidget):
         layout.addWidget(self.videoLabel)
         controls = QHBoxLayout()
         controls.addWidget(openButton)
-        controls.addWidget(playButton)
+        controls.addWidget(self.playButton)
         controls.addWidget(self.slider)
         layout.addLayout(controls)
         self.setLayout(layout)
 
         # Signal connections
+        self.mediaPlayer.stateChanged.connect(self.media_state_changed)
         self.mediaPlayer.positionChanged.connect(self.position_changed)
         self.mediaPlayer.durationChanged.connect(self.duration_changed)
         
         start_button = QPushButton("Start")
         start_button.setFixedSize(200, 60)
-        # start_button.move(self.width()/2 - 100, self.height()/2 - 30)
         start_button.clicked.connect(self.start)
 
     def open_file(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Open Video")
         if filename != "":
             self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(filename)))
+            self.playButton.setEnabled(True)  # Enable the play button
             self.mediaPlayer.play()
 
     def play_video(self):
         if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
             self.mediaPlayer.pause()
-            self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         else:
             self.mediaPlayer.play()
+            
+    def media_state_changed(self, state):
+        if self.mediaPlayer.state() == QMediaPlayer.PlayingState:
+            self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
+        else:
             self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
     def set_position(self, position):
@@ -275,14 +285,13 @@ class VideoPlayer(QWidget):
 
     def load_new_video(self, filename):
         self.mediaPlayer.stop()
-
         self.videoSurface.setWidget(None)
-
         self.mediaPlayer.setMedia(QMediaContent(QUrl.fromLocalFile(filename)))
+        self.playButton.setEnabled(True)  # Enable the play button
 
         self.videoLabel = QLabel()
         self.videoLabel.setAlignment(Qt.AlignCenter)
-        self.videoLabel.setMinimumSize(640, 480)  # Set minimum size
+        self.videoLabel.setMinimumSize(640, 480)
         self.videoLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.videoSurface.setWidget(self.videoLabel)
 
