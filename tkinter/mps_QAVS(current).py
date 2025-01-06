@@ -20,6 +20,11 @@ class CustomVideoSurface(QAbstractVideoSurface):
         super().__init__(parent)
         self.widget = None
         self.parent = parent
+        
+        self.second_to_last_overlap = False
+        self.previous_overlap = False
+
+        self.screenshots_number = 1
 
         # Initialize MediaPipe and OpenCV
         self.mp_pose = mp.solutions.pose
@@ -29,8 +34,7 @@ class CustomVideoSurface(QAbstractVideoSurface):
     def start(self, format):
         self.format = format
         return super().start(format)
-    
-    # Function to calculate IoU (Intersection over Union) between two bounding boxes
+
     @staticmethod
     def calculate_iou(boxA, boxB):
         xA = max(boxA[0], boxB[0])
@@ -47,43 +51,43 @@ class CustomVideoSurface(QAbstractVideoSurface):
 
         unionArea = boxAArea + boxBArea - interArea
 
-        iou = interArea / unionArea if unionArea != 0 else 0
+        if (boxAArea > boxBArea):
+            iou = interArea / boxBArea if boxBArea != 0 else 0
+        else: 
+            iou = interArea / boxAArea if boxAArea != 0 else 0
+
         return iou
 
-    def screenshot(self, person_box, frame_rgb):
-        xmin, ymin, xmax, ymax, conf = person_box
-
-        width = xmax - xmin
-        height = ymax - ymin
-                    
-        CUSHION = 100
-                    
-        crop_xmin = int(xmin) - CUSHION
-        crop_ymin = int(ymin) - CUSHION
-        crop_xmax = int(xmax) + CUSHION
-        crop_ymax = int(ymax) + CUSHION
-                    
+    def screenshot(self, person_box, racket_box, frame_rgb):
+        person_xmin, person_ymin, person_xmax, person_ymax, _ = person_box
+        racket_xmin, racket_ymin, racket_xmax, racket_ymax = racket_box
+                
+        CUSHION = 60
+        
+        crop_xmin = int(min(person_xmin, racket_xmin)) - CUSHION
+        crop_ymin = int(min(person_ymin, racket_ymin)) - CUSHION
+        crop_xmax = int(max(person_xmax, racket_xmax)) + CUSHION
+        crop_ymax = int(max(person_ymax, racket_ymax)) + CUSHION
+                
         frame_cropped = frame_rgb[crop_ymin:crop_ymax, crop_xmin:crop_xmax]
 
-        file_name = "contact_screenshot.png"
+        file_name = f"contact_screenshot{self.screenshots_number}.png"
         save_dir = os.path.dirname(os.path.abspath(__file__))
         self.parent.screenshot_path = os.path.join(save_dir, file_name)
-                    
-        # Convert RGB to BGR for cv2.imwrite
         frame_bgr = cv2.cvtColor(frame_cropped, cv2.COLOR_RGB2BGR)
         cv2.imwrite(self.parent.screenshot_path, frame_bgr)
         print(f"Screenshot saved to: {self.parent.screenshot_path}")
+
+        self.screenshots_number += 1
     
     def objectDetection(self, frame_rgb):
         # Convert the frame (image) to a format that YOLOv8 can process
-        results = model(frame_rgb, device = "mps", verbose = False)[0]  # Get first result
+        results = model(frame_rgb, device = "mps", verbose = False)[0]
         
-        # Boolean Variables for contact, prep, and finish
         self.contact_detected = False
         self.prep_detected = False
         self.finish_detected = False
 
-        # Variables to store racket, ball, and person bounding boxes
         racket_box = None
         ball_box = None
         person_box = None
@@ -96,11 +100,11 @@ class CustomVideoSurface(QAbstractVideoSurface):
         self.person_left = None
         
 
-        # Draw bounding boxes on the frame for detected objects
-        for det in results:  # For each detected object
-            xmin, ymin, xmax, ymax = det.boxes.xyxy[0].tolist()  # Get box coordinates
-            conf = det.boxes.conf[0].item()  # Get confidence
-            cls = det.boxes.cls[0].item()  # Get class id
+        # Draw the bounding boxes
+        for det in results:
+            xmin, ymin, xmax, ymax = det.boxes.xyxy[0].tolist()
+            conf = det.boxes.conf[0].item()
+            cls = det.boxes.cls[0].item()
 
             # Filter out low-conf detections
             if conf > 0.5:
@@ -128,16 +132,25 @@ class CustomVideoSurface(QAbstractVideoSurface):
             cv2.rectangle(frame_rgb, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (255, 0, 0), 2)
             cv2.putText(frame_rgb, f'Person: {conf:.2f}', (int(xmin), int(ymin - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-        # Check for overlap (contact) between racket and ball
+        # Check for overlap between racket and ball
         if racket_box and ball_box:
-            iou = self.calculate_iou(racket_box, ball_box)
-            print("IoU: ", iou)
-            if iou > 0:
-                self.parent.contact_detected = True 
-                print("Contact Detected")
+            iou_ball = self.calculate_iou(racket_box, ball_box)
+            iou_racket = self.calculate_iou(racket_box, person_box)
+
+            print("IoU_Ball: ", iou_ball)
+            print("IoU_Racket: ", iou_racket)
+            
+            if iou_ball > 0.5 and iou_racket < 0.5:
+                self.parent.contact_detected = True
                 
                 if person_box:
-                    self.screenshot(person_box, frame_rgb)
+                    self.screenshot(person_box, racket_box, frame_rgb)
+            
+        #     self.second_to_last_overlap = self.previous_overlap
+        #     self.previous_overlap = current_overlap
+        # else:
+        #     self.second_to_last_overlap = False
+        #     self.previous_overlap = False
 
         # Check for preparation 
         # if racket_box and ball_box and len(self.frames) > 1:
@@ -145,7 +158,6 @@ class CustomVideoSurface(QAbstractVideoSurface):
         #         print("Backhand Preparation Detected")
         #     elif racket_right > person_right:
         #         print("Forehand Preparation Detected")
-
 
     def present(self, frame):
         if not frame.isValid():
@@ -193,30 +205,77 @@ class CustomVideoSurface(QAbstractVideoSurface):
         self.widget = widget
 
 class ComparisonWindow(QWidget):
-    def __init__(self, screenshot_path):
-        super().__init__()
-        self.setWindowTitle("Pro Comparison")
+    def __init__(self, screenshot_path, pro_player, parent = None):
+        super().__init__(parent)
         self.setGeometry(200, 100, 1000, 600)
 
+        self.parent = parent
+        self.screenshot_path = screenshot_path
+
+        self.mp_pose = mp.solutions.pose
+        self.pose = self.mp_pose.Pose()
+        self.mp_drawing = mp.solutions.drawing_utils
+
+        self.screenshot_paths = []
+
         layout = QVBoxLayout()
-        
         comparison_layout = QHBoxLayout()
 
-        rafa_contact_path = "/Users/yizhengc/dev/Quest_Project_Tennis/images/rafa_forehand_contact_ao.png"
-        
-        screenshot_label = QLabel(self)
-        comparison_photo_label = QLabel(self)
-        if screenshot_path and os.path.exists(screenshot_path):
-            screenshot = QPixmap(screenshot_path)
-            screenshot_label.setPixmap(screenshot.scaled(400, 400, Qt.KeepAspectRatio))
-            comparison_photo = QPixmap(rafa_contact_path)
-            comparison_photo_label.setPixmap(comparison_photo.scaled(400, 400, Qt.KeepAspectRatio))
-            
-        comparison_layout.addWidget(screenshot_label)
-        comparison_layout.addWidget(comparison_photo_label)
+        self.user_dropdown = QComboBox(self)
+        self.user_dropdown.currentTextChanged.connect(self.update_user_photo)
+
+        self.pro_dropdown = QComboBox(self)
+        self.pro_dropdown.addItem("Rafa")
+        self.pro_dropdown.addItem("Sinner")
+        self.pro_dropdown.currentTextChanged.connect(self.update_pro_photo)
+
+        self.screenshot_label = QLabel(self)
+        self.comparison_photo_label = QLabel(self)
+
+        self.update_screenshot(self.screenshot_path)
+        self.update_pro_photo(pro_player)
+
+        controls_layout = QVBoxLayout()
+        controls_layout.addWidget(self.user_dropdown)
+        controls_layout.addWidget(self.pro_dropdown)
+
+        comparison_layout.addWidget(self.screenshot_label)
+        comparison_layout.addWidget(self.comparison_photo_label)
+        comparison_layout.addLayout(controls_layout)
         
         layout.addLayout(comparison_layout)
         self.setLayout(layout)
+
+    def update_screenshot(self, path):
+        self.screenshot_paths.append(path)
+        self.user_dropdown.addItem(f"Screenshot {len(self.screenshot_paths)}")
+        self.update_user_photo(f"Screenshot {len(self.screenshot_paths)}")
+
+    def update_user_photo(self, selection):
+        user_photos = {
+            "Screenshot 1": "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot1.png",
+            "Screenshot 2": "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot2.png"
+        }
+
+        user_path = user_photos.get(selection)
+        if user_path and os.path.exists(user_path):
+            user_photo = QPixmap(user_path)
+            self.screenshot_label.setPixmap(user_photo.scaled(400, 400, Qt.KeepAspectRatio))
+        else:
+            self.screenshot_label.clear()
+
+    def update_pro_photo(self, player):
+        pro_photos = {
+            "Rafa": "/Users/yizhengc/dev/Quest_Project_Tennis/images/rafa_forehand_contact_ao.png",
+            "Sinner": "/Users/yizhengc/dev/Quest_Project_Tennis/images/sinner_forehand_contact.png"
+        }
+        
+        pro_path = pro_photos.get(player)
+        if pro_path and os.path.exists(pro_path):
+            comparison_photo = QPixmap(pro_path)
+            self.comparison_photo_label.setPixmap(comparison_photo.scaled(400, 400, Qt.KeepAspectRatio))
+        else:
+            self.comparison_photo_label.clear()
 
 class VideoPlayer(QWidget):
     def __init__(self, parent = None):
@@ -224,9 +283,6 @@ class VideoPlayer(QWidget):
         self.contact_detected = False 
         self.screenshot_path = None
         self.parent = parent
-
-        rafa_chosen = False
-        sincity_chosen = False
 
         self.setWindowTitle("Video Player with Frame Modification")
         self.setGeometry(200, 100, 800, 600)
@@ -263,31 +319,22 @@ class VideoPlayer(QWidget):
         self.start_button = QPushButton("Start")
         self.start_button.clicked.connect(self.setup)
 
-        self.dropdown = QComboBox(self)
-        self.dropdown.addItem("Rafa")
-        self.dropdown.addItem("SinCity")
-
         self.next_button = QPushButton("Next")
         self.next_button.clicked.connect(self.next)
-
-        self.dropdown_chosen = QPushButton("Get Comparison Photo")
-        self.dropdown_chosen.clicked.connect(self.dropdown_choice)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.videoLabel)
         controls = QHBoxLayout()
         controls.addWidget(self.start_button)
-        controls.addWidget(self.dropdown)
-        controls.addWidget(self.dropdown_chosen)
         self.layout.addLayout(controls)
         self.setLayout(self.layout)
 
-        self.page = 0  # Add page tracking
+        self.page = 0 
+        self.selected_player = "Rafa" # default
 
     def setup(self):
         controls = QHBoxLayout()
         self.start_button.setParent(None)
-        self.dropdown.setParent(None)
         controls.addWidget(self.openButton)
         controls.addWidget(self.playButton)
         controls.addWidget(self.slider)
@@ -345,23 +392,11 @@ class VideoPlayer(QWidget):
         ctext = self.combobox.itemText(index)
         print("Current itemText", ctext)
 
-    def dropdown_choice(self):
-        chosen = self.dropdown.currentText()
-        if chosen == "Rafa":
-            self.rafa_chosen = True
-        elif chosen == "SinCity":
-            self.sincity_chosen = True
-        else:
-            msg = QMessageBox()
-            msg.setText("Please select a player to compare with")
-            msg.exec_()
-
-    def next(self):
+    def next(self) :
         if self.page == 1 and self.contact_detected:
-            self.comparison_window = ComparisonWindow(self.screenshot_path)
+            self.comparison_window = ComparisonWindow(self.screenshot_path, self.selected_player)
             self.comparison_window.show()
             self.close()
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
