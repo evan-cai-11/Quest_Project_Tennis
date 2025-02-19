@@ -235,6 +235,16 @@ class ComparisonWindow(QWidget):
 
         self.screenshot_label = QLabel(self)
         self.comparison_photo_label = QLabel(self)
+        
+        self.user_angle1 = 0
+        self.user_angle2 = 0
+        self.pro_angle1 = 0
+        self.pro_angle2 = 0
+
+        self.feedback_button = QPushButton("Get Feedback")
+        self.feedback_button.clicked.connect(self.get_feedback)
+
+        self.feedback_text = QLabel("")
 
         self.update_screenshot(self.screenshot_path)
         self.update_pro_photo(pro_player)
@@ -242,6 +252,9 @@ class ComparisonWindow(QWidget):
         controls_layout = QVBoxLayout()
         controls_layout.addWidget(self.user_dropdown)
         controls_layout.addWidget(self.pro_dropdown)
+        
+        layout.addWidget(controls_layout.addWidget(self.feedback_button))
+        layout.addWidget(self.feedback_text)
 
         comparison_layout.addWidget(self.screenshot_label)
         comparison_layout.addWidget(self.comparison_photo_label)
@@ -307,10 +320,20 @@ class ComparisonWindow(QWidget):
                 angle1 = self.calculate_angle(self.right_hip, self.right_shoulder, self.right_elbow)
                 angle2 = self.calculate_angle(self.right_knee, self.crotch, self.left_knee)
 
-                print(f"Arm & Body Angle: {angle1}, Stance Angle: {angle2}")
-
-                cv2.putText(frame_rgb, str(angle1), self.right_shoulder, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
-                cv2.putText(frame_rgb, str(angle2), self.crotch, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                if os.path.basename(image_path).startswith('contact_screenshot'):
+                    self.user_angle1 = angle1
+                    self.user_angle2 = angle2
+                    print(f"User Arm & Body Angle: {self.user_angle1}, User Stance Angle: {self.user_angle2}")
+                    print(f"User Arm & Body Angle: {self.user_angle1}, User Stance Angle: {self.user_angle2}")
+                    cv2.putText(frame_rgb, str(self.user_angle1), self.right_shoulder, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                    cv2.putText(frame_rgb, str(self.user_angle2), self.crotch, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                else:
+                    self.pro_angle1 = angle1
+                    self.pro_angle2 = angle2
+                    print(f"Pro Arm & Body Angle: {self.pro_angle1}, Pro Stance Angle: {self.pro_angle2}")
+                    cv2.putText(frame_rgb, str(self.pro_angle1), self.right_shoulder, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                    cv2.putText(frame_rgb, str(self.pro_angle2), self.crotch, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                
             except:
                 pass
 
@@ -353,6 +376,29 @@ class ComparisonWindow(QWidget):
         else:
             self.comparison_photo_label.clear()
 
+    def get_feedback(self):
+        feedback_text = "Feedback: "
+        
+        arm_angle_diff = abs(self.user_angle1 - self.pro_angle1)
+        if arm_angle_diff > 15:
+            if self.user_angle1 < self.pro_angle1:
+                feedback_text += "Arm is too closed. "
+            else:
+                feedback_text += "Arm is over-extended. "
+        else:
+            feedback_text += "Good arm position. "
+        
+        stance_angle_diff = abs(self.user_angle2 - self.pro_angle2)
+        if stance_angle_diff > 15:
+            if self.user_angle2 < self.pro_angle2:
+                feedback_text += "Stance is too narrow. "
+            else:
+                feedback_text += "Stance is too wide. "
+        else:
+            feedback_text += "Good stance. "
+        
+        self.feedback_text.setText(feedback_text)
+
 class VideoPlayer(QWidget):
     def __init__(self, parent = None):
         super().__init__(parent)
@@ -384,7 +430,6 @@ class VideoPlayer(QWidget):
         self.slider = QSlider(Qt.Horizontal)
         self.slider.sliderMoved.connect(self.set_position)
 
-        # Signal connections
         self.mediaPlayer.stateChanged.connect(self.media_state_changed)
         self.mediaPlayer.positionChanged.connect(self.position_changed)
         self.mediaPlayer.durationChanged.connect(self.duration_changed)
