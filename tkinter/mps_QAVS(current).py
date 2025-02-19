@@ -224,6 +224,7 @@ class ComparisonWindow(QWidget):
 
         layout = QVBoxLayout()
         comparison_layout = QHBoxLayout()
+        feedback_layout = QHBoxLayout()
 
         self.user_dropdown = QComboBox(self)
         self.user_dropdown.currentTextChanged.connect(self.update_user_photo)
@@ -246,6 +247,9 @@ class ComparisonWindow(QWidget):
 
         self.feedback_text = QLabel("")
 
+        self.key_stats_user = QLabel("")
+        self.key_stats_pro = QLabel("")
+
         self.update_screenshot(self.screenshot_path)
         self.update_pro_photo(pro_player)
 
@@ -253,14 +257,18 @@ class ComparisonWindow(QWidget):
         controls_layout.addWidget(self.user_dropdown)
         controls_layout.addWidget(self.pro_dropdown)
         
-        layout.addWidget(controls_layout.addWidget(self.feedback_button))
-        layout.addWidget(self.feedback_text)
-
         comparison_layout.addWidget(self.screenshot_label)
         comparison_layout.addWidget(self.comparison_photo_label)
         comparison_layout.addLayout(controls_layout)
+
+        feedback_layout.addWidget(self.key_stats_user)
+        feedback_layout.addWidget(self.key_stats_pro)
         
+        layout.addWidget(controls_layout.addWidget(self.feedback_button))
+        layout.addWidget(self.feedback_text)
         layout.addLayout(comparison_layout)
+        layout.addLayout(feedback_layout)
+        
         self.setLayout(layout)
 
     def calculate_angle(self, first, mid, end):
@@ -321,18 +329,13 @@ class ComparisonWindow(QWidget):
                 angle2 = self.calculate_angle(self.right_knee, self.crotch, self.left_knee)
 
                 if os.path.basename(image_path).startswith('contact_screenshot'):
-                    self.user_angle1 = angle1
-                    self.user_angle2 = angle2
+                    self.user_angle1 = int(angle1)
+                    self.user_angle2 = int(angle2)
                     print(f"User Arm & Body Angle: {self.user_angle1}, User Stance Angle: {self.user_angle2}")
-                    print(f"User Arm & Body Angle: {self.user_angle1}, User Stance Angle: {self.user_angle2}")
-                    cv2.putText(frame_rgb, str(self.user_angle1), self.right_shoulder, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
-                    cv2.putText(frame_rgb, str(self.user_angle2), self.crotch, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
                 else:
-                    self.pro_angle1 = angle1
-                    self.pro_angle2 = angle2
+                    self.pro_angle1 = int(angle1)
+                    self.pro_angle2 = int(angle2)
                     print(f"Pro Arm & Body Angle: {self.pro_angle1}, Pro Stance Angle: {self.pro_angle2}")
-                    cv2.putText(frame_rgb, str(self.pro_angle1), self.right_shoulder, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
-                    cv2.putText(frame_rgb, str(self.pro_angle2), self.crotch, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
                 
             except:
                 pass
@@ -378,6 +381,9 @@ class ComparisonWindow(QWidget):
 
     def get_feedback(self):
         feedback_text = "Feedback: "
+
+        key_stats_user_str = "Arm & Body Angle: " + str(self.user_angle1) + " " + "Stance Angle: " + str(self.user_angle2)
+        key_stats_pro_str = "Arm & Body Angle: " + str(self.pro_angle1) + " " + "Stance Angle: " + str(self.pro_angle2)
         
         arm_angle_diff = abs(self.user_angle1 - self.pro_angle1)
         if arm_angle_diff > 15:
@@ -396,6 +402,9 @@ class ComparisonWindow(QWidget):
                 feedback_text += "Stance is too wide. "
         else:
             feedback_text += "Good stance. "
+
+        self.key_stats_user.setText(key_stats_user_str)
+        self.key_stats_pro.setText(key_stats_pro_str)
         
         self.feedback_text.setText(feedback_text)
 
