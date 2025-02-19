@@ -272,22 +272,45 @@ class ComparisonWindow(QWidget):
 
             if results_pose.pose_landmarks:
                 self.mp_drawing.draw_landmarks(frame_rgb, results_pose.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)
-                
+
             try:
                 landmarks = results_pose.pose_landmarks.landmark
                 
                 self.right_shoulder = [landmarks[self.mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x, landmarks[self.mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
                 self.right_hip = [landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP.value].x, landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP.value].y]
                 self.right_elbow = [landmarks[self.mp_pose.PoseLandmark.RIGHT_ELBOW.value].x, landmarks[self.mp_pose.PoseLandmark.RIGHT_ELBOW.value].y]
+                
+                self.right_knee = [landmarks[self.mp_pose.PoseLandmark.RIGHT_KNEE.value].x, landmarks[self.mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+                self.left_hip = [landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value].x, landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value].y]
+                self.left_knee = [landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE.value].x, landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+
+                self.average_x = (landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP.value].x + landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value].x) / 2
+                self.average_y = (landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP.value].y + landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value].y) / 2
+
+                self.crotch = [self.average_x, self.average_y]
 
                 height, width = frame_rgb.shape[:2]
                 self.right_hip = tuple(np.multiply(self.right_hip, [width, height]).astype(int))
                 self.right_shoulder = tuple(np.multiply(self.right_shoulder, [width, height]).astype(int))
                 self.right_elbow = tuple(np.multiply(self.right_elbow, [width, height]).astype(int))
 
-                angle = self.calculate_angle(self.right_hip, self.right_shoulder, self.right_elbow)
+                self.right_knee = tuple(np.multiply(self.right_knee, [width, height]).astype(int))
+                self.left_hip = tuple(np.multiply(self.left_hip, [width, height]).astype(int))
+                self.left_knee = tuple(np.multiply(self.left_knee, [width, height]).astype(int))
+                self.crotch = tuple(np.multiply(self.crotch, [width, height]).astype(int))
 
-                cv2.putText(frame_rgb, str(angle), self.right_shoulder, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                self.crotch_x = int(self.average_x * width)
+                self.crotch_y = int(self.average_y * height)
+
+                cv2.circle(frame_rgb, (self.crotch_x, self.crotch_y), radius = 5, color = (255, 0, 0), thickness = 10)
+
+                angle1 = self.calculate_angle(self.right_hip, self.right_shoulder, self.right_elbow)
+                angle2 = self.calculate_angle(self.right_knee, self.crotch, self.left_knee)
+
+                print(f"Arm & Body Angle: {angle1}, Stance Angle: {angle2}")
+
+                cv2.putText(frame_rgb, str(angle1), self.right_shoulder, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                cv2.putText(frame_rgb, str(angle2), self.crotch, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
             except:
                 pass
 
@@ -340,19 +363,16 @@ class VideoPlayer(QWidget):
         self.setWindowTitle("Video Player with Frame Modification")
         self.setGeometry(200, 100, 800, 600)
 
-        # Initialize media player
         self.mediaPlayer = QMediaPlayer(None, QMediaPlayer.VideoSurface)
-        self.videoSurface = CustomVideoSurface(self)  # Pass self as parent
+        self.videoSurface = CustomVideoSurface(self)
         self.mediaPlayer.setVideoOutput(self.videoSurface)
 
-        # QLabel to display modified frames
         self.videoLabel = QLabel()
         self.videoLabel.setAlignment(Qt.AlignCenter)
-        self.videoLabel.setMinimumSize(640, 480)  # Set minimum size
+        self.videoLabel.setMinimumSize(640, 480)
         self.videoLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.videoSurface.setWidget(self.videoLabel)
 
-        # UI Elements
         self.openButton = QPushButton("Open Video")
         self.openButton.clicked.connect(self.open_file)
 
@@ -383,7 +403,7 @@ class VideoPlayer(QWidget):
         self.setLayout(self.layout)
 
         self.page = 0 
-        self.selected_player = "Rafa" # default
+        self.selected_player = "Rafa"
 
     def setup(self):
         controls = QHBoxLayout()
