@@ -12,6 +12,7 @@ from PyQt5.QtCore import Qt, QUrl, QTimer
 import os
 import openai
 from ultralytics import YOLO
+from openai_api import ai_feedback
 
 #prompt: "Use these images to generate feedback to the user by comparing the arm & body angle and the stance angle with the professional player. The pro is Sinner, and the user is the one in the first image. User Arm & Body Angle: 64, User Stance Angle: 45, Pro Arm & Body Angle: 17, Pro Stance Angle: 59. To clarify, the Arm & Body Angle is the one at the armpit, and the stance angle is the one between the crotch and the 2 knees. Give a maximum 3 sentence overview on how to improve. Don't include the angles and numbers in the feedback, just use simple words."
 
@@ -249,6 +250,7 @@ class ComparisonWindow(QWidget):
         self.feedback_button.clicked.connect(self.get_feedback)
 
         self.feedback_text = QLabel("")
+        self.feedback_text.setWordWrap(True)
 
         self.key_stats_user = QLabel("")
         self.key_stats_pro = QLabel("")
@@ -362,9 +364,9 @@ class ComparisonWindow(QWidget):
         }
 
         user_path = user_photos.get(selection)
-        updated_user_path = self.draw_pose_on_image(user_path)
-        if user_path and os.path.exists(updated_user_path):
-            user_photo = QPixmap(updated_user_path)
+        self.updated_user_path = self.draw_pose_on_image(user_path)
+        if user_path and os.path.exists(self.updated_user_path):
+            user_photo = QPixmap(self.updated_user_path)
             self.screenshot_label.setPixmap(user_photo.scaled(400, 400, Qt.KeepAspectRatio))
         else:
             self.screenshot_label.clear()
@@ -376,15 +378,18 @@ class ComparisonWindow(QWidget):
         }
 
         pro_path = pro_photos.get(player)
-        updated_pro_path = self.draw_pose_on_image(pro_path)
-        if pro_path and os.path.exists(updated_pro_path):
-            comparison_photo = QPixmap(updated_pro_path)
+        self.updated_pro_path = self.draw_pose_on_image(pro_path)
+        if pro_path and os.path.exists(self.updated_pro_path):
+            comparison_photo = QPixmap(self.updated_pro_path)
             self.comparison_photo_label.setPixmap(comparison_photo.scaled(400, 400, Qt.KeepAspectRatio))
         else:
             self.comparison_photo_label.clear()
 
     def get_feedback(self):
-        feedbackText = "Feedback: "
+        feedbackText = ""
+
+        feedbackText = ai_feedback(self.updated_user_path, self.updated_pro_path, self.user_angle1, self.user_angle2, self.pro_angle1, self.pro_angle2)
+
         score = 100
 
         score_str = str(100)
@@ -395,25 +400,19 @@ class ComparisonWindow(QWidget):
         arm_angle_diff = abs(self.user_angle1 - self.pro_angle1)
         if arm_angle_diff > 15:
             if self.user_angle1 < self.pro_angle1:
-                feedbackText += "Arm is too closed. "
                 score -= arm_angle_diff
             else:
-                feedbackText += "Arm is over-extended. "
                 score -= arm_angle_diff
         else:
-            feedbackText += "Good arm position. "
             score -= arm_angle_diff
         
         stance_angle_diff = abs(self.user_angle2 - self.pro_angle2)
         if stance_angle_diff > 15:
             if self.user_angle2 < self.pro_angle2:
-                feedbackText += "Stance is too narrow. "
                 score -= stance_angle_diff
             else:
-                feedbackText += "Stance is too wide. "
                 score -= stance_angle_diff
         else:
-            feedbackText += "Good stance. "
             score -= stance_angle_diff
 
         score_str = "Score: " + str(score) + " /" + " 100"
