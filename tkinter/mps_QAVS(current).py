@@ -10,7 +10,10 @@ from PyQt5.QtMultimedia import QAbstractVideoSurface, QVideoFrame, QVideoSurface
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt, QUrl, QTimer
 import os
+import openai
 from ultralytics import YOLO
+
+#prompt: "Use these images to generate feedback to the user by comparing the arm & body angle and the stance angle with the professional player. The pro is Sinner, and the user is the one in the first image. User Arm & Body Angle: 64, User Stance Angle: 45, Pro Arm & Body Angle: 17, Pro Stance Angle: 59. To clarify, the Arm & Body Angle is the one at the armpit, and the stance angle is the one between the crotch and the 2 knees. Give a maximum 3 sentence overview on how to improve. Don't include the angles and numbers in the feedback, just use simple words."
 
 model = YOLO("yolov8m")
 
@@ -250,6 +253,8 @@ class ComparisonWindow(QWidget):
         self.key_stats_user = QLabel("")
         self.key_stats_pro = QLabel("")
 
+        self.score = QLabel("")
+
         self.update_screenshot(self.screenshot_path)
         self.update_pro_photo(pro_player)
 
@@ -263,6 +268,7 @@ class ComparisonWindow(QWidget):
 
         feedback_layout.addWidget(self.key_stats_user)
         feedback_layout.addWidget(self.key_stats_pro)
+        feedback_layout.addWidget(self.score)
         
         layout.addWidget(controls_layout.addWidget(self.feedback_button))
         layout.addWidget(self.feedback_text)
@@ -323,8 +329,6 @@ class ComparisonWindow(QWidget):
                 self.crotch_x = int(self.average_x * width)
                 self.crotch_y = int(self.average_y * height)
 
-                cv2.circle(frame_rgb, (self.crotch_x, self.crotch_y), radius = 5, color = (255, 0, 0), thickness = 10)
-
                 angle1 = self.calculate_angle(self.right_hip, self.right_shoulder, self.right_elbow)
                 angle2 = self.calculate_angle(self.right_knee, self.crotch, self.left_knee)
 
@@ -380,7 +384,10 @@ class ComparisonWindow(QWidget):
             self.comparison_photo_label.clear()
 
     def get_feedback(self):
-        feedback_text = "Feedback: "
+        feedbackText = "Feedback: "
+        score = 100
+
+        score_str = str(100)
 
         key_stats_user_str = "Arm & Body Angle: " + str(self.user_angle1) + " " + "Stance Angle: " + str(self.user_angle2)
         key_stats_pro_str = "Arm & Body Angle: " + str(self.pro_angle1) + " " + "Stance Angle: " + str(self.pro_angle2)
@@ -388,25 +395,35 @@ class ComparisonWindow(QWidget):
         arm_angle_diff = abs(self.user_angle1 - self.pro_angle1)
         if arm_angle_diff > 15:
             if self.user_angle1 < self.pro_angle1:
-                feedback_text += "Arm is too closed. "
+                feedbackText += "Arm is too closed. "
+                score -= arm_angle_diff
             else:
-                feedback_text += "Arm is over-extended. "
+                feedbackText += "Arm is over-extended. "
+                score -= arm_angle_diff
         else:
-            feedback_text += "Good arm position. "
+            feedbackText += "Good arm position. "
+            score -= arm_angle_diff
         
         stance_angle_diff = abs(self.user_angle2 - self.pro_angle2)
         if stance_angle_diff > 15:
             if self.user_angle2 < self.pro_angle2:
-                feedback_text += "Stance is too narrow. "
+                feedbackText += "Stance is too narrow. "
+                score -= stance_angle_diff
             else:
-                feedback_text += "Stance is too wide. "
+                feedbackText += "Stance is too wide. "
+                score -= stance_angle_diff
         else:
-            feedback_text += "Good stance. "
+            feedbackText += "Good stance. "
+            score -= stance_angle_diff
+
+        score_str = "Score: " + str(score) + " /" + " 100"
 
         self.key_stats_user.setText(key_stats_user_str)
         self.key_stats_pro.setText(key_stats_pro_str)
         
-        self.feedback_text.setText(feedback_text)
+        self.score.setText(score_str)
+
+        self.feedback_text.setText(feedbackText)
 
 class VideoPlayer(QWidget):
     def __init__(self, parent = None):
