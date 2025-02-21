@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QHB
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtMultimedia import QAbstractVideoSurface, QVideoFrame, QVideoSurfaceFormat
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
 from PyQt5.QtCore import Qt, QUrl, QTimer
 import os
 import openai
@@ -226,6 +226,8 @@ class ComparisonWindow(QWidget):
 
         self.screenshot_paths = []
 
+        self.FONT = "SF Pro"
+
         layout = QVBoxLayout()
         comparison_layout = QHBoxLayout()
         feedback_layout = QHBoxLayout()
@@ -246,35 +248,45 @@ class ComparisonWindow(QWidget):
         self.pro_angle1 = 0
         self.pro_angle2 = 0
 
-        self.feedback_button = QPushButton("Get Feedback")
+        self.feedback_button = QPushButton("Get AI Feedback")
         self.feedback_button.clicked.connect(self.get_feedback)
 
         self.feedback_text = QLabel("")
         self.feedback_text.setWordWrap(True)
+        self.feedback_text.setFont(QFont(self.FONT, 15))
 
         self.key_stats_user = QLabel("")
+        self.key_stats_user.setFont(QFont(self.FONT, 15))
         self.key_stats_pro = QLabel("")
+        self.key_stats_pro.setFont(QFont(self.FONT, 15))
 
         self.score = QLabel("")
+        self.score.setFont(QFont(self.FONT, 15))
+        self.score.setFixedSize(80, 80)
+
+        self.title = QLabel("Feedback")
+        self.title.setFont(QFont(self.FONT, 30))
+        self.title.setStyleSheet("font-weight: bold;" "text-decoration: underline;")
 
         self.update_screenshot(self.screenshot_path)
         self.update_pro_photo(pro_player)
 
-        controls_layout = QVBoxLayout()
+        controls_layout = QHBoxLayout()
         controls_layout.addWidget(self.user_dropdown)
         controls_layout.addWidget(self.pro_dropdown)
         
         comparison_layout.addWidget(self.screenshot_label)
         comparison_layout.addWidget(self.comparison_photo_label)
-        comparison_layout.addLayout(controls_layout)
 
         feedback_layout.addWidget(self.key_stats_user)
         feedback_layout.addWidget(self.key_stats_pro)
         feedback_layout.addWidget(self.score)
         
-        layout.addWidget(controls_layout.addWidget(self.feedback_button))
+        layout.addWidget(self.title)
         layout.addWidget(self.feedback_text)
+        layout.addWidget(self.feedback_button)
         layout.addLayout(comparison_layout)
+        layout.addLayout(controls_layout)
         layout.addLayout(feedback_layout)
         
         self.setLayout(layout)
@@ -394,8 +406,8 @@ class ComparisonWindow(QWidget):
 
         score_str = str(100)
 
-        key_stats_user_str = "Arm & Body Angle: " + str(self.user_angle1) + " " + "Stance Angle: " + str(self.user_angle2)
-        key_stats_pro_str = "Arm & Body Angle: " + str(self.pro_angle1) + " " + "Stance Angle: " + str(self.pro_angle2)
+        key_stats_user_str = "User Photo - " + "Arm & Body Angle: " + str(self.user_angle1) + "° " + "Stance Angle: " + str(self.user_angle2) + "°"
+        key_stats_pro_str = "Pro Photo - " + "Arm & Body Angle: " + str(self.pro_angle1) + "° " + "Stance Angle: " + str(self.pro_angle2) + "°"
         
         arm_angle_diff = abs(self.user_angle1 - self.pro_angle1)
         if arm_angle_diff > 15:
@@ -415,12 +427,17 @@ class ComparisonWindow(QWidget):
         else:
             score -= stance_angle_diff
 
-        score_str = "Score: " + str(score) + " /" + " 100"
+        score_str = str(score) + " / " + "100"
 
         self.key_stats_user.setText(key_stats_user_str)
         self.key_stats_pro.setText(key_stats_pro_str)
         
         self.score.setText(score_str)
+
+        self.red = 255 - int(score * 2.55)
+        self.green = int(score * 2.55)
+        
+        self.score.setStyleSheet(f"border: 2px solid rgb({self.red}, {self.green}, 0); border-radius: 40px; text-align: center; padding: 10px; qproperty-alignment: AlignCenter;")
 
         self.feedback_text.setText(feedbackText)
 
