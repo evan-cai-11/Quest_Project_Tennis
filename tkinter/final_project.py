@@ -230,14 +230,16 @@ class ComparisonWindow(QWidget):
 
         layout = QVBoxLayout()
         comparison_layout = QHBoxLayout()
-        feedback_layout = QHBoxLayout()
 
-        self.user_dropdown = QComboBox(self)
-        self.user_dropdown.currentTextChanged.connect(self.update_user_photo)
+        # self.user_dropdown = QComboBox(self)
+        # self.user_dropdown.currentTextChanged.connect(self.update_user_photo)
+
+        # self.header1 = QLabel("")
 
         self.pro_dropdown = QComboBox(self)
         self.pro_dropdown.addItem("Rafa")
         self.pro_dropdown.addItem("Sinner")
+        self.pro_dropdown.setFont(QFont(self.FONT, 15))
         self.pro_dropdown.currentTextChanged.connect(self.update_pro_photo)
 
         self.screenshot_label = QLabel(self)
@@ -260,34 +262,77 @@ class ComparisonWindow(QWidget):
         self.key_stats_pro = QLabel("")
         self.key_stats_pro.setFont(QFont(self.FONT, 15))
 
-        self.score = QLabel("")
-        self.score.setFont(QFont(self.FONT, 15))
-        self.score.setFixedSize(80, 80)
+        self.score_label = QLabel("")
+        self.score_label.setFont(QFont(self.FONT, 15))
+        self.score_label.setFixedSize(80, 80)
 
-        self.title = QLabel("Feedback")
+        self.title = QLabel("Forehand Analysis")
         self.title.setFont(QFont(self.FONT, 30))
-        self.title.setStyleSheet("font-weight: bold;" "text-decoration: underline;")
+        self.title.setStyleSheet("font-weight: bold;")
 
-        self.update_screenshot(self.screenshot_path)
+        self.icon = QLabel()
+
+        self.instructions1 = QLabel("Select the player you want to compare with: ")
+        self.instructions1.setFont(QFont(self.FONT, 15))
+
+        self.user_stats_title = QLabel("")
+        self.pro_stats_title = QLabel("")
+        self.user_stats_title.setFont(QFont(self.FONT, 15))
+        self.pro_stats_title.setFont(QFont(self.FONT, 15))
+        self.user_stats_title.setStyleSheet("font-weight: bold;")
+        self.pro_stats_title.setStyleSheet("font-weight: bold;")
+
+        self.stats_button = QPushButton("Get Forehand Stats")
+        self.stats_button.clicked.connect(self.get_key_stats)
+
+        self.header2 = QLabel("")
+        self.header2.setFont(QFont(self.FONT, 15))
+        self.header2.setStyleSheet("font-weight: bold;")
+
+        user_path = "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot1.png"
+        self.updated_user_path = self.draw_pose_on_image(user_path)
+        if user_path and os.path.exists(self.updated_user_path):
+            user_photo = QPixmap(self.updated_user_path)
+            self.screenshot_label.setPixmap(user_photo.scaled(400, 400, Qt.KeepAspectRatio))
+        else:
+            self.screenshot_label.clear()
+
+        # self.update_screenshot(self.screenshot_path)
         self.update_pro_photo(pro_player)
 
         controls_layout = QHBoxLayout()
-        controls_layout.addWidget(self.user_dropdown)
+        # controls_layout.addWidget(self.user_dropdown)
+        controls_layout.addWidget(self.instructions1)
         controls_layout.addWidget(self.pro_dropdown)
         
         comparison_layout.addWidget(self.screenshot_label)
         comparison_layout.addWidget(self.comparison_photo_label)
 
-        feedback_layout.addWidget(self.key_stats_user)
-        feedback_layout.addWidget(self.key_stats_pro)
-        feedback_layout.addWidget(self.score)
+        feedback_text_layout = QHBoxLayout()
+        feedback_text_layout.addWidget(self.icon)
+        feedback_text_layout.addWidget(self.feedback_text)
+
+        stats_layout1 = QVBoxLayout()
+        stats_layout1.addWidget(self.user_stats_title)
+        stats_layout1.addWidget(self.key_stats_user)
+
+        stats_layout2 = QVBoxLayout()
+        stats_layout2.addWidget(self.pro_stats_title)
+        stats_layout2.addWidget(self.key_stats_pro)
+
+        full_stats_layout = QHBoxLayout()
+        full_stats_layout.addLayout(stats_layout1)
+        full_stats_layout.addLayout(stats_layout2)
+        full_stats_layout.addWidget(self.score_label)
         
         layout.addWidget(self.title)
-        layout.addWidget(self.feedback_text)
-        layout.addWidget(self.feedback_button)
         layout.addLayout(comparison_layout)
         layout.addLayout(controls_layout)
-        layout.addLayout(feedback_layout)
+        layout.addWidget(self.stats_button)
+        layout.addLayout(full_stats_layout)
+        layout.addWidget(self.feedback_button)
+        layout.addWidget(self.header2)
+        layout.addLayout(feedback_text_layout)
         
         self.setLayout(layout)
 
@@ -369,19 +414,19 @@ class ComparisonWindow(QWidget):
         self.user_dropdown.addItem(f"Screenshot {len(self.screenshot_paths)}")
         self.update_user_photo(f"Screenshot {len(self.screenshot_paths)}")
 
-    def update_user_photo(self, selection):
-        user_photos = {
-            "Screenshot 1": "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot1.png",
-            "Screenshot 2": "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot2.png"
-        }
+    # def update_user_photo(self, selection):
+    #     user_photos = {
+    #         "Screenshot 1": "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot1.png",
+    #         "Screenshot 2": "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot2.png"
+    #     }
 
-        user_path = user_photos.get(selection)
-        self.updated_user_path = self.draw_pose_on_image(user_path)
-        if user_path and os.path.exists(self.updated_user_path):
-            user_photo = QPixmap(self.updated_user_path)
-            self.screenshot_label.setPixmap(user_photo.scaled(400, 400, Qt.KeepAspectRatio))
-        else:
-            self.screenshot_label.clear()
+    #     user_path = user_photos.get(selection)
+    #     self.updated_user_path = self.draw_pose_on_image(user_path)
+    #     if user_path and os.path.exists(self.updated_user_path):
+    #         user_photo = QPixmap(self.updated_user_path)
+    #         self.screenshot_label.setPixmap(user_photo.scaled(400, 400, Qt.KeepAspectRatio))
+    #     else:
+    #         self.screenshot_label.clear()
 
     def update_pro_photo(self, player):
         pro_photos = {
@@ -399,47 +444,56 @@ class ComparisonWindow(QWidget):
 
     def get_feedback(self):
         feedbackText = ""
-
         feedbackText = ai_feedback(self.updated_user_path, self.updated_pro_path, self.user_angle1, self.user_angle2, self.pro_angle1, self.pro_angle2)
+        pixmap = QPixmap("/Users/yizhengc/dev/Quest_Project_Tennis/images/ai_star.png")
+        scaled_pixmap = pixmap.scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.icon.setPixmap(scaled_pixmap)
+        self.icon.setFixedSize(25, 25)
+        self.icon.setAlignment(Qt.AlignCenter)
+        self.header2.setText("Summary")
+        self.feedback_text.setText(feedbackText)
 
-        score = 100
+    def get_key_stats(self):
+        key_stats_user_title = "Your Forehand Stats"
+        key_stats_pro_title = "Pro's Forehand Stats"
 
-        score_str = str(100)
+        key_stats_user_str = "Angle between Arm & Body: " + str(self.user_angle1) + "° / " + "Stance Angle: " + str(self.user_angle2) + "°"
+        key_stats_pro_str = "Angle between Arm & Body: " + str(self.pro_angle1) + "° / " + "Stance Angle: " + str(self.pro_angle2) + "°"
 
-        key_stats_user_str = "User Photo - " + "Arm & Body Angle: " + str(self.user_angle1) + "° " + "Stance Angle: " + str(self.user_angle2) + "°"
-        key_stats_pro_str = "Pro Photo - " + "Arm & Body Angle: " + str(self.pro_angle1) + "° " + "Stance Angle: " + str(self.pro_angle2) + "°"
+        self.score = 100
+
+        self.score_str = str(100)
         
         arm_angle_diff = abs(self.user_angle1 - self.pro_angle1)
         if arm_angle_diff > 15:
             if self.user_angle1 < self.pro_angle1:
-                score -= arm_angle_diff
+                self.score -= arm_angle_diff
             else:
-                score -= arm_angle_diff
+                self.score -= arm_angle_diff
         else:
-            score -= arm_angle_diff
+            self.score -= arm_angle_diff
         
         stance_angle_diff = abs(self.user_angle2 - self.pro_angle2)
         if stance_angle_diff > 15:
             if self.user_angle2 < self.pro_angle2:
-                score -= stance_angle_diff
+                self.score -= stance_angle_diff
             else:
-                score -= stance_angle_diff
+                self.score -= stance_angle_diff
         else:
-            score -= stance_angle_diff
+            self.score -= stance_angle_diff
 
-        score_str = str(score) + " / " + "100"
-
+        self.score_str = str(self.score)
+        self.score_label.setText(self.score_str)
+        self.red = 255 - int(self.score * 2.55)
+        self.green = int(self.score * 2.55)
+        
         self.key_stats_user.setText(key_stats_user_str)
         self.key_stats_pro.setText(key_stats_pro_str)
-        
-        self.score.setText(score_str)
-
-        self.red = 255 - int(score * 2.55)
-        self.green = int(score * 2.55)
-        
-        self.score.setStyleSheet(f"border: 2px solid rgb({self.red}, {self.green}, 0); border-radius: 40px; text-align: center; padding: 10px; qproperty-alignment: AlignCenter;")
-
-        self.feedback_text.setText(feedbackText)
+        self.user_stats_title.setText(key_stats_user_title)
+        self.pro_stats_title.setText(key_stats_pro_title)
+        self.score_label.setText(self.score_str)
+        self.score_label.setFixedSize(50, 50)
+        self.score_label.setStyleSheet(f"border: 2px solid rgb({self.red}, {self.green}, 0); border-radius: 25px; text-align: center; qproperty-alignment: AlignCenter;")
 
 class VideoPlayer(QWidget):
     def __init__(self, parent = None):
