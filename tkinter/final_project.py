@@ -251,6 +251,7 @@ class ComparisonWindow(QWidget):
         self.pro_angle2 = 0
 
         self.feedback_button = QPushButton("Get AI Feedback")
+        self.feedback_button.setFixedSize(200, 30)
         self.feedback_button.clicked.connect(self.get_feedback)
 
         self.feedback_text = QLabel("")
@@ -274,6 +275,7 @@ class ComparisonWindow(QWidget):
 
         self.instructions1 = QLabel("Select the player you want to compare with: ")
         self.instructions1.setFont(QFont(self.FONT, 15))
+        self.title.setStyleSheet("font-weight: bold;")
 
         self.user_stats_title = QLabel("")
         self.pro_stats_title = QLabel("")
@@ -283,6 +285,7 @@ class ComparisonWindow(QWidget):
         self.pro_stats_title.setStyleSheet("font-weight: bold;")
 
         self.stats_button = QPushButton("Get Forehand Stats")
+        self.stats_button.setFixedSize(200, 30)
         self.stats_button.clicked.connect(self.get_key_stats)
 
         self.header2 = QLabel("")
