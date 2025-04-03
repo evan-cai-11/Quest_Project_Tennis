@@ -237,8 +237,14 @@ class ComparisonWindow(QWidget):
         # self.header1 = QLabel("")
 
         self.pro_dropdown = QComboBox(self)
-        self.pro_dropdown.addItem("Rafa")
-        self.pro_dropdown.addItem("Sinner")
+        self.pro_dropdown.addItem("Aryna Sabalenka")
+        self.pro_dropdown.addItem("Carlos Alcaraz")
+        self.pro_dropdown.addItem("Coco Gauff")
+        self.pro_dropdown.addItem("Jannik Sinner")
+        self.pro_dropdown.addItem("Novak Djokovic")
+        self.pro_dropdown.addItem("Rafael Nadal")
+        self.pro_dropdown.addItem("Roger Federer")
+        self.pro_dropdown.addItem("Serena Williams")
         self.pro_dropdown.setFont(QFont(self.FONT, 15))
         self.pro_dropdown.currentTextChanged.connect(self.update_pro_photo)
 
@@ -292,13 +298,13 @@ class ComparisonWindow(QWidget):
         self.header2.setFont(QFont(self.FONT, 15))
         self.header2.setStyleSheet("font-weight: bold;")
 
-        user_path = "/Users/yizhengc/dev/Quest_Project_Tennis/tkinter/contact_screenshot1.png"
-        self.updated_user_path = self.draw_pose_on_image(user_path)
-        if user_path and os.path.exists(self.updated_user_path):
+        self.updated_user_path = self.draw_pose_on_image(screenshot_path)
+        if screenshot_path and os.path.exists(self.updated_user_path):
             user_photo = QPixmap(self.updated_user_path)
             self.screenshot_label.setPixmap(user_photo.scaled(400, 400, Qt.KeepAspectRatio))
         else:
             self.screenshot_label.clear()
+            print(f"Warning: Could not load user image from path: {screenshot_path}")
 
         # self.update_screenshot(self.screenshot_path)
         self.update_pro_photo(pro_player)
@@ -433,9 +439,15 @@ class ComparisonWindow(QWidget):
 
     def update_pro_photo(self, player):
         pro_photos = {
-            "Rafa": "/Users/yizhengc/dev/Quest_Project_Tennis/images/rafa_forehand_contact_ao.png",
-            "Sinner": "/Users/yizhengc/dev/Quest_Project_Tennis/images/sinner_forehand_contact.png"
-        }
+            "Rafael Nadal": "/Users/yizhengc/dev/Quest_Project_Tennis/images/rafa_forehand_dc.png",
+            "Jannik Sinner": "/Users/yizhengc/dev/Quest_Project_Tennis/images/sinner_forehand_contact.png",
+            "Roger Federer": "/Users/yizhengc/dev/Quest_Project_Tennis/images/roger_forehand.png",
+            "Novak Djokovic": "/Users/yizhengc/dev/Quest_Project_Tennis/images/djoko_forehand.png",
+            "Serena Williams": "/Users/yizhengc/dev/Quest_Project_Tennis/images/serena_forehand.png",
+            "Coco Gauff": "/Users/yizhengc/dev/Quest_Project_Tennis/images/coco_forehand.png",
+            "Carlos Alcaraz": "/Users/yizhengc/dev/Quest_Project_Tennis/images/carlitos_forehand.png",
+            "Aryna Sabalenka": "/Users/yizhengc/dev/Quest_Project_Tennis/images/sabalenka_forehand.png"
+            }
 
         pro_path = pro_photos.get(player)
         self.updated_pro_path = self.draw_pose_on_image(pro_path)
@@ -609,11 +621,14 @@ class VideoPlayer(QWidget):
         ctext = self.combobox.itemText(index)
         print("Current itemText", ctext)
 
-    def next(self) :
+    def next(self):
         if self.page == 1 and self.contact_detected:
-            self.comparison_window = ComparisonWindow(self.screenshot_path, self.selected_player)
-            self.comparison_window.show()
-            self.close()
+            if self.screenshot_path and os.path.exists(self.screenshot_path):
+                self.comparison_window = ComparisonWindow(self.screenshot_path, self.selected_player)
+                self.comparison_window.show()
+                self.close()
+            else:
+                QMessageBox.warning(self, "Error", "No valid screenshot available. Please record a swing first.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
